@@ -1,0 +1,95 @@
+AMIGO SECRETO - PROYECTO BASE EA3
+=================================
+
+Ejecución: clase cl.duoc.amigosecreto.Launcher (o mvn javafx:run).
+Mientras no asignen su implementación de ParticipanteDAO, la ventana se abre
+y el área de mensajes indica que aún no hay una implementación asignada.
+
+
+ESTRUCTURA
+----------
+cl.duoc.amigosecreto
+  Launcher, App              Inicio de la aplicación (no modificar).
+  model/                     Participante, Adulto, Nino, TrabajadorActivo (no modificar).
+  dao/                       ParticipanteDAO y PersistenciaException (no modificar).
+  conexion/ConexionBD        Datos de conexión: COMPLETAR.
+  controller/MainController  Controlador de la ventana: asignar el DAO
+                             (marca "EA3"); no modificar el resto.
+                             Incluye el sorteo, que ya está programado.
+resources/cl/duoc/amigosecreto/view
+  main-view.fxml             Ventana principal (no modificar).
+pom.xml                      Agregar el conector JDBC (marca "EA3").
+scripts/                     amigosecreto_mysql.sql y amigosecreto_oracle.sql:
+                             ejecuten el de su motor (no modificar).
+
+
+MODELO
+------
+Participante (abstracta)
+  int getId() / void setId(int id)                       0 mientras no está almacenado.
+  String getNombre() / setNombre(String)                 No nulo ni vacío.
+  int getEdad() / setEdad(int)                           Adulto: 18 a 120. Niño: 0 a 17.
+  String getSugerenciaRegalo() / setSugerenciaRegalo()   Opcional ("" si no se indica).
+  int getIdAmigoSecreto() / setIdAmigoSecreto(int)       id del participante al que le
+                                                         toca regalar; 0 = sin sorteo.
+  boolean tieneAmigoSecreto()                            true si idAmigoSecreto > 0.
+  String getTipo()                                       "Adulto" o "Niño".
+  double calcularPresupuesto()                           Presupuesto del regalo que hace.
+  Los set lanzan IllegalArgumentException con un mensaje si el dato es inválido.
+
+Adulto extends Participante implements TrabajadorActivo
+  Adulto(String nombre, int edad, String sugerenciaRegalo, boolean trabajadorActivo)
+  boolean isTrabajadorActivo() / setTrabajadorActivo(boolean)
+  Presupuesto: $10.000; +100% si es trabajador activo.
+
+Nino extends Participante
+  Nino(String nombre, int edad, String sugerenciaRegalo, String nombreTutor)
+  String getNombreTutor() / setNombreTutor(String)       Adulto responsable; no vacío.
+  Presupuesto: $5.000; +50% si tiene 12 años o más.
+
+TrabajadorActivo (interfaz)
+  boolean isTrabajadorActivo()
+  void setTrabajadorActivo(boolean)
+
+
+ACCESO A DATOS
+--------------
+ParticipanteDAO (interfaz)
+  List<Participante> obtenerTodos()  Todos los participantes, cada uno como Adulto o
+                                     Nino, con todos sus datos, su id y el id de su
+                                     amigo secreto (0 si la columna es NULL).
+  void insertar(Participante p)      Guarda un participante nuevo (el id lo genera la BD).
+  void actualizar(Participante p)    Modifica el participante con el mismo id, incluido
+                                     su amigo secreto (0 se guarda como NULL).
+                                     El botón Sortear usa esta operación.
+  void eliminar(int id)              Elimina el participante con ese id.
+  Todas lanzan PersistenciaException si la operación no puede completarse.
+
+PersistenciaException(String mensaje)
+PersistenciaException(String mensaje, Throwable causa)
+  La ventana muestra getMessage() en el área de mensajes.
+
+ConexionBD
+  static Connection getConnection() throws SQLException
+  Entrega una conexión abierta con los datos URL, USUARIO y CLAVE.
+  Quien la utiliza debe cerrarla.
+
+
+BASE DE DATOS
+-------------
+tipo_participante (id_tipo, descripcion)     1 = Adulto, 2 = Niño
+participante      (id, id_tipo, nombre, edad, sugerencia_regalo,
+                   trabajador_activo,                       <- solo Adulto
+                   nombre_tutor,                            <- solo Niño
+                   id_amigo_secreto)                        <- NULL sin sorteo;
+                                                               referencia a participante(id)
+
+
+USO EN FAMILIA
+--------------
+1. Registren a todos los participantes.
+2. Presionen Sortear (mínimo 3 participantes). La tabla solo muestra
+   "Asignado"; no revela a quién le toca cada uno.
+3. Cada persona, por turno y sin que los demás miren, selecciona su nombre
+   y presiona Ver amigo secreto. Al seleccionar otra fila, el mensaje se oculta.
+4. Si se agrega o elimina a alguien después del sorteo, vuelvan a sortear.
